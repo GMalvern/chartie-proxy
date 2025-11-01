@@ -11,7 +11,8 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const TEXT_MODEL = 'gemini-1.5-flash-latest'; // ✅ valid for :generateContent
+const TEXT_model: req.body.model || "models/gemini-1.5-flash",
+; // ✅ valid for :generateContent
 
 // ---- Text / JSON generation (Gemini) ----
 app.post('/api/generate', async (req, res) => {
@@ -51,3 +52,4 @@ app.get('/', (_req, res) => res.type('text').send('Chartie proxy OK'));
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`✅ Chartie proxy listening on ${PORT}`));
+
