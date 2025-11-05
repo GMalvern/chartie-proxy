@@ -1,52 +1,55 @@
-import 'dotenv/config';
-import express from 'express';
-import fetch from 'node-fetch';
-import cors from 'cors';
+// Chartie Proxy Server v1.9.2
+// Secure middle-tier for Gemini calls
+
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import fetch from "node-fetch";
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Allow CORS during testing. You can restrict origins later.
+// **************************************
+// ✅ IMPORTANT: Put your Gemini API key here
+// **************************************
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_API_KEY_HERE";
+
+// **************************************
+// Middleware
+// **************************************
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(bodyParser.json({ limit: "2mb" }));
 
-// ✅ Use v1beta (current features + 2.5 models live here)
-const BASE = 'https://generativelanguage.googleapis.com/v1beta';
+// **************************************
+// ✅ Test endpoint
+// **************************************
+app.get("/", (_, res) => {
+  res.send("✅ Chartie Proxy Active");
+});
 
-// ✅ Pick a live model (2.5). You can also try: gemini-2.5-flash, gemini-2.5-flash-lite
-const TEXT_MODEL = 'models/gemini-2.5-flash';
-
-// -------------- TEXT / JSON generation --------------
-app.post('/api/generate', async (req, res) => {
+// **************************************
+// ✅ Main AI Route
+// **************************************
+app.post("/api/generate", async (req, res) => {
   try {
-    // Allow the client to override model if it sends one; otherwise use default.
-    const model = req.body?.model || TEXT_MODEL;
-
-    const url = `${BASE}/${model}:generateContent?key=${process.env.GOOGLE_AI_KEY}`;
-    const forwardBody = { ...req.body };
-    // Ensure we don't accidentally double-nest model in the body.
-    delete forwardBody.model;
-
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(forwardBody),
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body)
     });
 
-    const data = await r.json();
-    return res.status(r.status).json(data);
+    const data = await response.json();
+    res.json(data);
+
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'proxy generate error' });
+    console.error("❌ Proxy Error:", err);
+    res.status(500).json({ error: "Proxy request failed" });
   }
 });
 
-// -------------- IMAGE generation (placeholder) --------------
-app.post('/api/images', async (_req, res) => {
-  // You can wire this later to Imagen once you’re ready.
-  return res.json({ message: 'Image endpoint coming soon' });
+// **************************************
+// ✅ Start Server
+// **************************************
+app.listen(PORT, () => {
+  console.log(`🚀 Chartie Proxy running on http://localhost:${PORT}`);
 });
-
-// -------------- Health check --------------
-app.get('/', (_req, res) => res.type('text').send('Chartie proxy OK ✅ (v1beta • 2.5 models)'));
-
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`✅ Chartie proxy running on ${PORT}`));
