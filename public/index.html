@@ -1,1 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Chartie™ — Think + Ink + Chart. BOOM!</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Poppins:wght@400;600&family=DM+Serif+Display:ital@0;1&family=Nunito+Sans:wght@400;700&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --accent:#f59e0b;
+      --title-font:'Patrick Hand', cursive;
+      --body-font:'Poppins', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      --brush-url:none; /* set via JS to sync with accent */
+    }
+    body{ background:#f6f7fb; color:#0f172a; font-family:var(--body-font);}
+    .paper{ background:#fff; border-radius:1rem; box-shadow:0 10px 20px rgba(0,0,0,.06) }
+
+    /* ===== Sheet backgrounds ===== */
+    .anchor-sheet{ position:relative; border-radius:1rem; border:1px solid rgba(15,23,42,.08); overflow:hidden;}
+    .anchor-sheet::before{ content:""; position:absolute; inset:0; border-left:4px solid #ff8ab5; transform:translateX(46px); pointer-events:none;}
+
+    .bg-lined-light{
+      background:
+        repeating-linear-gradient(#0000, #0000 32px, rgba(15,23,42,.06) 33px, rgba(15,23,42,.06) 34px),
+        #fff9e8;
+    }
+    .bg-lined-dark{
+      background:
+        repeating-linear-gradient(#0000, #0000 30px, rgba(15,23,42,.14) 31px, rgba(15,23,42,.14) 32px),
+        #f5efe3;
+    }
+    .bg-graph{
+      background:
+        linear-gradient(0deg, rgba(14,165,233,.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14,165,233,.12) 1px, transparent 1px),
+        #ffffff;
+      background-size: 20px 20px, 20px 20px, auto;
+    }
+    .bg-poster{ background:#ffffff; }
+    .bg-blank{ background:#fff; }
+
+    /* ===== Type & highlights ===== */
+    .marker-title{ font-family:var(--title-font); font-weight:400; color:#0f172a; letter-spacing:.3px; }
+    .marker-h{ font-family:var(--title-font); color:#0f172a; font-size:1.15rem; line-height:1.1; margin-bottom:.25rem;}
+
+    .hl{ display:inline; padding:0 .15em; border-radius:.2em; }
+    /* ✅ Clean underline: no bleed into descenders (like the “make” accent) */
+    .hl-clean{
+      background: linear-gradient(transparent 62%, var(--accent) 0) no-repeat;
+      background-size: 100% .45em;
+      background-position: 0 100%;
+    }
+    .hl-none{ background:none; }
+    /* Brush stroke aligned to baseline; color synced via --brush-url */
+    .hl-brush{
+      background-image: var(--brush-url);
+      background-repeat:no-repeat;
+      background-size:100% .82em;
+      background-position: 0 100%;
+    }
+
+    .card{ background:#ffffffea; border:1px solid rgba(15,23,42,.12); border-radius:1rem; padding:.75rem .9rem; box-shadow:0 6px 14px rgba(0,0,0,.05)}
+    .pretty-list li{ margin:.25rem 0 .35rem 0; padding-left:.1rem; }
+    .swatch{ width:28px;height:28px;border-radius:.5rem;border:1px solid rgba(0,0,0,.1);cursor:pointer; }
+
+    .bigtext .marker-title{ font-size:2.2rem }
+    .bigtext .pretty-list{ font-size:1.125rem }
+
+    .badge{ font-size:.75rem; font-weight:600; background:#e5e7eb; color:#111827; padding:.25rem .5rem; border-radius:.5rem; }
+    .progress-wrap{ position:relative; height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+    .progress-fill{ position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg, var(--accent), #f97316); transition:width .25s ease; }
+    .pencil{ position:absolute; top:-14px; left:0; transform:translateX(-8px); width:32px; height:32px; }
+    .pencil svg{ filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
+
+    .eqbox{ background:#f3f6fb; border:1px solid #e5e7eb; border-radius:.75rem; padding:.6rem .8rem; }
+    .math-hand .mathface{ font-family:'Patrick Hand','Kalam',cursive; font-weight:400; letter-spacing:.2px; }
+    .mathface{ font-variant-ligatures:none; }
+    .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .ghostbtn{ border:1px dashed #cbd5e1; }
+    .pill{ display:inline-block; padding:.2rem .55rem; border-radius:999px; background:rgba(15,23,42,.05); font-size:.75rem; }
+
+    .row-wrap{ display:flex; flex-wrap:wrap; gap:.75rem; }
+    .minw-0{ min-width:0; }
+
+    /* Sticky note */
+    .sticky{
+      position:absolute; top:18px; right:18px; width:220px; max-width:40%;
+      background:#fff8c7; border:1px solid rgba(0,0,0,.12); border-radius:.6rem;
+      box-shadow:0 12px 24px rgba(0,0,0,.12), inset 0 0 0 1px rgba(255,255,255,.8);
+      transform: rotate(1.2deg); padding:.65rem .7rem .75rem .7rem;
+    }
+    .sticky::after{
+      content:""; position:absolute; top:-10px; left:40px; right:40px; height:16px;
+      background:linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,.15));
+      border:1px solid rgba(0,0,0,.08); filter: blur(.2px);
+      transform: rotate(-1.5deg); border-radius:.2rem;
+    }
+    .sticky h4,.sticky p{ font-family:'Patrick Hand', cursive; }
+    .sticky h4{ font-size:1.1rem; margin-bottom:.25rem; }
+    .sticky p{ font-size:1rem; line-height:1.2; white-space:pre-wrap; }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center">
+  <div class="w-full max-w-7xl p-6 space-y-6">
+    <!-- Header -->
+    <header class="text-center space-y-3">
+      <h1 class="text-3xl font-semibold">Chartie™</h1>
+      <p class="text-slate-600 mt-1 text-lg">Think + Ink + Chart. BOOM!</p>
+    </header>
+
+    <!-- Control Panel -->
+    <section class="paper p-5 space-y-5">
+      <div class="grid gap-3 md:grid-cols-[1fr_auto] items-end">
+        <div class="minw-0">
+          <label class="block text-sm font-medium mb-1">Topic</label>
+          <input id="topic" class="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Type a topic for AI… or pick a Simple layout and paste." />
+          <div id="error" class="hidden mt-2 text-rose-700 text-sm font-semibold"></div>
+        </div>
+        <div class="row-wrap items-end">
+          <button id="btn-generate" class="rounded-xl bg-indigo-600 text-white font-semibold px-4 py-2">Create Chart</button>
+          <div class="min-w-[240px]">
+            <div class="progress-wrap">
+              <div id="prog-fill" class="progress-fill"></div>
+              <div id="pencil" class="pencil">
+                <svg viewBox="0 0 64 64" width="32" height="32" aria-hidden="true">
+                  <path d="M8 56l8-2 30-30-6-6-30 30-2 8z" fill="#ffbf47"/>
+                  <path d="M50 12l6 6-6 6-6-6 6-6z" fill="#0ea5e9"/>
+                  <path d="M16 54l6-2-4-4-2 6z" fill="#eab308"/>
+                </svg>
+              </div>
+            </div>
+            <div id="loading-text" class="text-xs text-slate-600 mt-1">Ready. Type a topic and hit Create.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-3 lg:grid-cols-2">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label class="block text-sm font-medium mb-1">Layout</label>
+            <select id="layout" class="w-full rounded-lg border px-3 py-2">
+              <optgroup label="AI layouts">
+                <option value="auto">Auto (detect)</option>
+                <option value="standard">Standard</option>
+                <option value="compare">Comparison (POV)</option>
+                <option value="cause">Cause ↔ Effect</option>
+                <option value="timelineH">Timeline — Horizontal</option>
+                <option value="frayer">Frayer (IFD)</option>
+                <option value="frayerClassic">Frayer — Classic</option>
+                <option value="mathex">MathEx — Worked Example</option>
+              </optgroup>
+              <optgroup label="Simple layouts (no AI)">
+                <option value="simple-title-body">Simple — Title & Body</option>
+                <option value="simple-2col">Simple — Two Columns</option>
+                <option value="simple-3col">Simple — Three Columns</option>
+                <option value="simple-2x2">Simple — 2×2 Grid</option>
+                <option value="simple-title-sub-3">Simple — Title + Subtitle + 3 Bullets</option>
+                <option value="simple-title-sub-list">Simple — Title + Subtitle + List</option>
+                <option value="simple-quote">Simple — Quote Card</option>
+                <option value="simple-def-callout">Simple — Definition Callout</option>
+                <option value="simple-objective-steps">Simple — Objective + Steps</option>
+                <option value="simple-image">Simple — Image & Caption</option>
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Toggles</label>
+            <div class="row-wrap text-sm">
+              <label class="flex items-center gap-2"><input id="toggle-big" type="checkbox" class="h-4 w-4"><span>Big Text</span></label>
+              <label class="flex items-center gap-2"><input id="toggle-emoji" type="checkbox" class="h-4 w-4"><span>Emoji bullets</span></label>
+              <label class="flex items-center gap-2"><input id="toggle-hand" type="checkbox" class="h-4 w-4"><span>Handwritten math</span></label>
+              <label class="flex items-center gap-2"><input id="toggle-sticky" type="checkbox" class="h-4 w-4"><span>Sticky note</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">Highlight style</label>
+            <select id="hlStyle" class="w-full rounded-lg border px-3 py-2">
+              <option value="clean">Clean underline</option>
+              <option value="brush">Brush stroke</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Font preset</label>
+            <select id="fontPreset" class="w-full rounded-lg border px-3 py-2">
+              <option value="hand+rounded">Flair Pen (Patrick Hand + Poppins)</option>
+              <option value="serif+rounded">Academic Queen (DM Serif + Nunito)</option>
+              <option value="hand+sans">That Funny Teacher (Patrick Hand + Nunito)</option>
+              <option value="clean+academic">Clean Academic (Nunito + Nunito)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Background</label>
+            <select id="bgStyle" class="w-full rounded-lg border px-3 py-2">
+              <option value="lined-light">Lined (Light)</option>
+              <option value="lined-dark">Lined (Dark)</option>
+              <option value="graph">Graph paper</option>
+              <option value="poster">Poster (bright white)</option>
+              <option value="blank">Blank</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accent + Paper -->
+      <div class="grid gap-3 lg:grid-cols-2">
+        <div>
+          <div class="text-sm font-medium mb-1">Accent</div>
+          <div class="row-wrap items-center">
+            <button class="swatch" data-color="#f59e0b" style="background:#fde68a" title="Amber"></button>
+            <button class="swatch" data-color="#22c55e" style="background:#bbf7d0" title="Green"></button>
+            <button class="swatch" data-color="#60a5fa" style="background:#bfdbfe" title="Blue"></button>
+            <button class="swatch" data-color="#f472b6" style="background:#fecdd3" title="Pink"></button>
+            <button class="swatch" data-color="#a78bfa" style="background:#ddd6fe" title="Violet"></button>
+            <button class="swatch" data-color="#fb923c" style="background:#ffedd5" title="Peach"></button>
+            <button class="swatch" data-color="#84cc16" style="background:#ecfccb" title="Lime"></button>
+            <button class="swatch" data-color="#06b6d4" style="background:#cffafe" title="Cyan"></button>
+            <button class="swatch" data-color="#ef4444" style="background:#fee2e2" title="Soft Red"></button>
+            <button class="swatch" data-color="#14b8a6" style="background:#ccfbf1" title="Teal"></button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <div class="text-sm font-medium">Paper (PDF)</div>
+            <select id="paper" class="w-full rounded-lg border px-2 py-1 text-sm">
+              <option value="letter">Letter 8.5×11</option>
+              <option value="a4">A4</option>
+              <option value="tabloid">Tabloid 11×17 (Poster Maker!)</option>
+            </select>
+          </div>
+          <div>
+            <div class="text-sm font-medium">Orientation</div>
+            <select id="orientation" class="w-full rounded-lg border px-2 py-1 text-sm">
+              <option value="portrait">Portrait</option>
+              <option value="landscape" selected>Landscape</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Templates -->
+      <div id="qt-panel" class="hidden border-t pt-4 space-y-3">
+        <div class="row-wrap items-center justify-between">
+          <h3 class="text-sm font-semibold">Quick Templates — paste or type your content</h3>
+          <div class="row-wrap">
+            <button id="qt-split-blank" class="ghostbtn rounded-md px-2 py-1 text-xs">Split by blank lines</button>
+            <button id="qt-split-lines" class="ghostbtn rounded-md px-2 py-1 text-xs">Split by new lines</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1">Title</label>
+          <input id="qt-title" class="w-full rounded-lg border px-3 py-2" placeholder="Slide title…" />
+        </div>
+        <div id="qt-rows" class="grid gap-3"></div>
+        <div class="text-xs text-slate-500">Tip: For multi-box layouts, paste in one box then use “Split” to distribute.</div>
+      </div>
+
+      <!-- Sticky editor -->
+      <div id="sticky-controls" class="hidden border-t pt-3 grid gap-3 sm:grid-cols-3">
+        <div class="sm:col-span-1">
+          <label class="block text-sm font-semibold mb-1">Sticky Note Title</label>
+          <input id="sticky-title" class="w-full rounded-lg border px-3 py-2" placeholder="Reminder / Key Tip" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-semibold mb-1">Sticky Note Text</label>
+          <textarea id="sticky-text" rows="2" class="w-full rounded-lg border px-3 py-2" placeholder="Student-friendly blurb…"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sheet -->
+    <section id="sheet" class="anchor-sheet bg-lined-light paper p-0">
+      <div class="flex flex-wrap items-center justify-between gap-2 pr-5">
+        <div class="minw-0">
+          <h2 id="chart-title" class="marker-title text-[1.9rem] md:text-[2.2rem] mb-1 pl-16 truncate">Your Chart</h2>
+          <p id="chart-sub" class="text-slate-700 pl-16 mb-2"></p>
+        </div>
+        <span id="format-badge" class="badge mt-2 mr-3">Format: Standard</span>
+      </div>
+      <div id="chart-content" class="grid gap-3 pl-16 pr-6 pb-6"></div>
+      <div id="sticky" class="sticky hidden" aria-hidden="true">
+        <h4 id="sticky-h"></h4>
+        <p id="sticky-p"></p>
+      </div>
+      <span class="visually-hidden" id="sr-status" aria-live="polite"></span>
+    </section>
+
+    <!-- Downloads -->
+    <div class="row-wrap items-center">
+      <button id="btn-download" class="rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900 font-semibold px-4 py-2">Download PNG</button>
+      <button id="btn-pdf" class="rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-900 font-semibold px-4 py-2">Download PDF</button>
+    </div>
+  </div>
+
+  <!-- deps -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    // ===== CONFIG (same-origin) =====
+    const PROXY = ""; // same-origin /api/generate
+    const MODEL = "models/gemini-2.5-flash";
+
+    // ===== Refs
+    const topicEl = document.getElementById('topic');
+    const btnGen = document.getElementById('btn-generate');
+    const btnDl = document.getElementById('btn-download');
+    const btnPDF = document.getElementById('btn-pdf');
+    const errorEl = document.getElementById('error');
+    const sheet = document.getElementById('sheet');
+    const titleEl = document.getElementById('chart-title');
+    const subEl = document.getElementById('chart-sub');
+    const contentEl = document.getElementById('chart-content');
+    const formatBadge = document.getElementById('format-badge');
+    const srStatus = document.getElementById('sr-status');
+
+    const layoutSel = document.getElementById('layout');
+    const hlStyleSel = document.getElementById('hlStyle');
+    const fontPresetSel = document.getElementById('fontPreset');
+    const bgStyleSel = document.getElementById('bgStyle');
+    const paperSel = document.getElementById('paper');
+    const orientSel = document.getElementById('orientation');
+    const toggleBig = document.getElementById('toggle-big');
+    const toggleEmoji = document.getElementById('toggle-emoji');
+    const toggleHand = document.getElementById('toggle-hand');
+    const toggleSticky = document.getElementById('toggle-sticky');
+
+    const progFill = document.getElementById('prog-fill');
+    const pencil = document.getElementById('pencil');
+    const loadingText = document.getElementById('loading-text');
+
+    const qtPanel = document.getElementById('qt-panel');
+    const qtRows = document.getElementById('qt-rows');
+    const qtTitle = document.getElementById('qt-title');
+    const qtSplitBlank = document.getElementById('qt-split-blank');
+    const qtSplitLines = document.getElementById('qt-split-lines');
+
+    const stickyBox = document.getElementById('sticky');
+    const stickyH = document.getElementById('sticky-h');
+    const stickyP = document.getElementById('sticky-p');
+    const stickyControls = document.getElementById('sticky-controls');
+    const stickyTitle = document.getElementById('sticky-title');
+    const stickyText = document.getElementById('sticky-text');
+
+    const accentButtons = [].slice.call(document.querySelectorAll('.swatch'));
+
+    // ===== State
+    let lastChartJSON = null;
+    const simpleLayouts = new Set([
+      'simple-title-body','simple-2col','simple-3col','simple-2x2',
+      'simple-title-sub-3','simple-title-sub-list','simple-quote',
+      'simple-def-callout','simple-objective-steps','simple-image'
+    ]);
+
+    function isSimpleLayout(v){ return simpleLayouts.has(v); }
+
+    // ===== Helpers
+    function setAccent(hex){
+      document.documentElement.style.setProperty('--accent', hex);
+      // sync brush color
+      var acc = hex.replace('#','%23');
+      var url = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'><path d='M2 9 Q 22 2, 42 8 T 98 8' fill='none' stroke='"+acc+"' stroke-width='6' stroke-linecap='round'/></svg>\")";
+      document.documentElement.style.setProperty('--brush-url', url);
+      refreshHighlights();
+    }
+    function setFonts(preset){
+      if(preset === 'hand+rounded'){
+        document.documentElement.style.setProperty('--title-font', "'Patrick Hand', cursive");
+        document.documentElement.style.setProperty('--body-font', "'Poppins', system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+      } else if(preset === 'serif+rounded'){
+        document.documentElement.style.setProperty('--title-font', "'DM Serif Display', serif");
+        document.documentElement.style.setProperty('--body-font', "'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+      } else if(preset === 'hand+sans'){
+        document.documentElement.style.setProperty('--title-font', "'Patrick Hand', cursive");
+        document.documentElement.style.setProperty('--body-font', "'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+      } else {
+        document.documentElement.style.setProperty('--title-font', "'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+        document.documentElement.style.setProperty('--body-font', "'Nunito Sans', system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+      }
+    }
+    function setBackground(style){
+      sheet.classList.remove('bg-lined-light','bg-lined-dark','bg-blank','bg-graph','bg-poster');
+      if(style==='lined-dark') sheet.classList.add('bg-lined-dark');
+      else if(style==='blank') sheet.classList.add('bg-blank');
+      else if(style==='graph') sheet.classList.add('bg-graph');
+      else if(style==='poster') sheet.classList.add('bg-poster');
+      else sheet.classList.add('bg-lined-light');
+    }
+    function emojiFor(i){ var set=['🎯','📌','✏️','🧠','✨','📎','💡','🧩','📚','🔎']; return set[i % set.length] + ' '; }
+    function refreshHighlights(){
+      var style = hlStyleSel.value;
+      var els = sheet.querySelectorAll('.hl');
+      for (var i=0; i<els.length; i++){
+        els[i].classList.remove('hl-clean','hl-brush','hl-none');
+        els[i].classList.add(style==='brush'?'hl-brush': style==='none'?'hl-none':'hl-clean');
+      }
+    }
+    function looksLikeComparison(t){ var s=' ' + String(t||'').toLowerCase() + ' '; return /( vs\.? | versus | compare|comparison| pov |point of view|pro\/?con|two sides|for and against|perspective)/i.test(s); }
+    function looksMathy(t){ return /[=±×÷\/]|[0-9]\s*[a-z]|[\^]|fraction|solve|equation|area|perimeter|volume|slope|intercept/i.test(t||''); }
+
+    function startLoading(){ btnGen.disabled=true; btnGen.textContent='Creating…'; progressTo(5); loadingText.textContent='Cooking up a clean anchor chart…'; }
+    function progressTo(p){ var v=Math.max(0,Math.min(100,p)); progFill.style.width=v+'%'; pencil.style.left=v+'%'; }
+    function stopLoading(){ btnGen.disabled=false; btnGen.textContent='Create Chart'; progressTo(100); setTimeout(function(){progressTo(0)},600); loadingText.textContent='Done. Tweak anything, then download.'; }
+
+    // Quick Templates
+    function addBox(label,id,rows,placeholder){
+      var wrap=document.createElement('div');
+      wrap.innerHTML='<label class="block text-xs font-semibold mb-1">'+label+'</label><textarea id="'+id+'" rows="'+(rows||5)+'" class="w-full rounded-lg border px-3 py-2" placeholder="'+(placeholder||'Paste or type here…')+'"></textarea>';
+      qtRows.appendChild(wrap);
+    }
+    function addInput(label,id,placeholder){
+      var wrap=document.createElement('div');
+      wrap.innerHTML='<label class="block text-xs font-semibold mb-1">'+label+'</label><input id="'+id+'" class="w-full rounded-lg border px-3 py-2" placeholder="'+(placeholder||'')+'" />';
+      qtRows.appendChild(wrap);
+    }
+    function buildQtRows(layout){
+      qtRows.innerHTML=''; qtRows.className='grid gap-3';
+      if(layout==='simple-title-body'){ addBox('Body','qt-body',8); }
+      if(layout==='simple-2col'){ qtRows.classList.add('md:grid-cols-2'); addBox('Column A','qt-col1',10); addBox('Column B','qt-col2',10); }
+      if(layout==='simple-3col'){ qtRows.classList.add('md:grid-cols-3'); addBox('Column A','qt-col1',10); addBox('Column B','qt-col2',10); addBox('Column C','qt-col3',10); }
+      if(layout==='simple-2x2'){ qtRows.classList.add('md:grid-cols-2'); addBox('Top Left','qt-q1',7); addBox('Top Right','qt-q2',7); addBox('Bottom Left','qt-q3',7); addBox('Bottom Right','qt-q4',7); }
+      if(layout==='simple-title-sub-3'){ addInput('Subtitle','qt-sub','Short supporting line…'); addInput('Bullet 1','qt-b1'); addInput('Bullet 2','qt-b2'); addInput('Bullet 3','qt-b3'); }
+      if(layout==='simple-title-sub-list'){ addInput('Subtitle','qt-sub','Short supporting line…'); addBox('Bulleted List (each line = bullet)','qt-list',8,'Item 1\nItem 2\nItem 3'); }
+      if(layout==='simple-quote'){ addBox('Quote text','qt-quote',5,'“Put your best pull-quote here.”'); addInput('Attribution','qt-by','— Name, role'); }
+      if(layout==='simple-def-callout'){ addInput('Term','qt-term','Vocabulary Term'); addBox('Definition','qt-def',4,'Student-friendly definition…'); addBox('Examples (one per line)','qt-ex',4,'example 1\nexample 2'); }
+      if(layout==='simple-objective-steps'){ addInput('Objective','qt-obj','I can…'); addBox('Steps (one per line)','qt-steps',6,'Do this\nThen that\nFinish with…'); }
+      if(layout==='simple-image'){ addInput('Image URL','qt-img','https://…'); addInput('Caption','qt-cap','Short, friendly caption…'); }
+    }
+    function qtValues(){
+      function get(id){ var el=document.getElementById(id); return (el && el.value) || ''; }
+      return {
+        title: qtTitle.value.trim(),
+        body: get('qt-body'),
+        col1: get('qt-col1'), col2: get('qt-col2'), col3: get('qt-col3'),
+        q1: get('qt-q1'), q2: get('qt-q2'), q3: get('qt-q3'), q4: get('qt-q4'),
+        sub: get('qt-sub'), b1:get('qt-b1'), b2:get('qt-b2'), b3:get('qt-b3'),
+        list:get('qt-list'), quote:get('qt-quote'), by:get('qt-by'),
+        term:get('qt-term'), def:get('qt-def'), ex:get('qt-ex'),
+        obj:get('qt-obj'), steps:get('qt-steps'),
+        img:get('qt-img'), cap:get('qt-cap')
+      };
+    }
+    function distribute(byBlank){
+      var areas = qtRows.querySelectorAll('textarea');
+      if(areas.length<=1) return;
+      var first = areas[0];
+      var chunks = String(first.value||'').split(byBlank?(/\n\s*\n/):(/\n/)).map(function(s){return s.trim()}).filter(Boolean);
+      for(var i=0;i<areas.length;i++){ areas[i].value = chunks[i] || ''; }
+    }
+    if(qtSplitBlank) qtSplitBlank.addEventListener('click', function(){ distribute(true); });
+    if(qtSplitLines) qtSplitLines.addEventListener('click', function(){ distribute(false); });
+
+    // Rendering
+    function applyStyling(){
+      sheet.classList.toggle('bigtext', !!toggleBig.checked);
+      setBackground(bgStyleSel.value);
+      setFonts(fontPresetSel.value);
+      refreshHighlights();
+      sheet.classList.toggle('math-hand', !!toggleHand.checked);
+      // sticky
+      stickyBox.classList.toggle('hidden', !toggleSticky.checked);
+      stickyBox.setAttribute('aria-hidden', String(!toggleSticky.checked));
+      stickyH.textContent = stickyTitle.value || '';
+      stickyP.textContent = stickyText.value || '';
+    }
+    function makeCard(title, html){
+      var d=document.createElement('div'); d.className='card';
+      d.innerHTML = (title?'<h3 class="marker-h"><span class="hl hl-clean">'+title+'</span></h3>':'') + (html||'');
+      return d;
+    }
+    function renderSimple(layout){
+      var v = qtValues();
+      titleEl.textContent = v.title || (topicEl.value || 'Your Chart');
+      subEl.textContent = '';
+      var labelMap = {
+        'simple-title-body':'Simple — Title & Body','simple-2col':'Simple — Two Columns',
+        'simple-3col':'Simple — Three Columns','simple-2x2':'Simple — 2×2 Grid',
+        'simple-title-sub-3':'Simple — Title + Subtitle + 3 Bullets',
+        'simple-title-sub-list':'Simple — Title + Subtitle + List',
+        'simple-quote':'Simple — Quote Card',
+        'simple-def-callout':'Simple — Definition Callout',
+        'simple-objective-steps':'Simple — Objective + Steps',
+        'simple-image':'Simple — Image & Caption'
+      };
+      formatBadge.textContent = 'Format: ' + (labelMap[layout] || 'Simple');
+      contentEl.innerHTML = '';
+
+      if(layout==='simple-title-body'){
+        contentEl.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.body||'')+'</div>'));
+      }
+      if(layout==='simple-2col'){
+        var row=document.createElement('div'); row.className='grid gap-3 md:grid-cols-2';
+        row.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.col1||'')+'</div>'));
+        row.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.col2||'')+'</div>'));
+        contentEl.appendChild(row);
+      }
+      if(layout==='simple-3col'){
+        var row3=document.createElement('div'); row3.className='grid gap-3 md:grid-cols-3';
+        row3.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.col1||'')+'</div>'));
+        row3.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.col2||'')+'</div>'));
+        row3.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.col3||'')+'</div>'));
+        contentEl.appendChild(row3);
+      }
+      if(layout==='simple-2x2'){
+        var grid=document.createElement('div'); grid.className='grid gap-3 md:grid-cols-2';
+        grid.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.q1||'')+'</div>'));
+        grid.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.q2||'')+'</div>'));
+        grid.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.q3||'')+'</div>'));
+        grid.appendChild(makeCard('', '<div class="whitespace-pre-wrap">'+(v.q4||'')+'</div>'));
+        contentEl.appendChild(grid);
+      }
+      if(layout==='simple-title-sub-3'){
+        if(v.sub) contentEl.appendChild(makeCard('', '<div class="pill">'+v.sub+'</div>'));
+        var bullets = [v.b1,v.b2,v.b3].filter(Boolean).map(function(b,i){ return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>'; }).join('');
+        contentEl.appendChild(makeCard('Key Points', "<ul class='pretty-list list-disc pl-6'>"+bullets+"</ul>"));
+      }
+      if(layout==='simple-title-sub-list'){
+        if(v.sub) contentEl.appendChild(makeCard('', '<div class="pill">'+v.sub+'</div>'));
+        var items = (v.list||'').split(/\n/).map(function(s){return s.trim()}).filter(Boolean);
+        var ul = items.map(function(b,i){ return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>'; }).join('');
+        contentEl.appendChild(makeCard('Notes', "<ul class='pretty-list list-disc pl-6'>"+ul+"</ul>"));
+      }
+      if(layout==='simple-quote'){
+        var quote = '<div class="quote">“'+String(v.quote||'').replace(/^["“]|["”]$/g,'')+'”</div>';
+        var by = v.by ? '<div class="mt-2 text-slate-600">— '+v.by.replace(/^—\s*/,'')+'</div>' : '';
+        contentEl.appendChild(makeCard('', quote + by));
+      }
+      if(layout==='simple-def-callout'){
+        var top = "<div class='inline-block px-3 py-1 rounded-lg border bg-white/80 mb-2'><span class='marker-h'><span class='hl hl-clean'>"+(v.term||'Term')+"</span></span></div>";
+        var def = '<p class="mb-2 whitespace-pre-wrap">'+(v.def||'')+'</p>';
+        var exArr = (v.ex||'').split(/\n/).map(function(s){return s.trim()}).filter(Boolean);
+        var ex = exArr.length ? "<div><span class='text-xs font-semibold text-slate-600'>Examples</span><ul class='pretty-list list-disc pl-6'>"+exArr.map(function(e,i){return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+e+'</li>';}).join('')+"</ul></div>":'';
+        contentEl.appendChild(makeCard('', top + def + ex));
+      }
+      if(layout==='simple-objective-steps'){
+        if(v.obj) contentEl.appendChild(makeCard('Objective', '<div class="pill">'+v.obj+'</div>'));
+        var steps = (v.steps||'').split(/\n/).map(function(s){return s.trim()}).filter(Boolean);
+        var ol = steps.map(function(s){ return '<li>'+s+'</li>'; }).join('');
+        contentEl.appendChild(makeCard('Steps', "<ol class='list-decimal pl-6'>"+ol+"</ol>"));
+      }
+      if(layout==='simple-image'){
+        var img = v.img ? '<img src="'+v.img+'" alt="" class="w-full h-auto rounded-lg border mb-2">' : '<div class="text-sm text-slate-500">Add an image URL above.</div>';
+        var cap = v.cap ? '<div class="text-sm text-slate-600">'+v.cap+'</div>' : '';
+        contentEl.appendChild(makeCard('', img + cap));
+      }
+    }
+
+    // AI layouts
+    function looksLayoutFromAuto(topic){ if(looksMathy(topic)) return 'mathex'; if(looksLikeComparison(topic)) return 'compare'; return 'standard'; }
+    function renderStandard(obj){
+      contentEl.innerHTML='';
+      (obj.sections||[]).forEach(function(s){
+        var items = (s.bullets||[]).map(function(b,i){ return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>'; }).join('');
+        contentEl.appendChild(makeCard(s.heading||'Section', "<ul class='pretty-list list-disc pl-6'>"+items+"</ul>"));
+      });
+    }
+    function renderCompare(obj){
+      contentEl.innerHTML='';
+      var wrap=document.createElement('div'); wrap.className='grid gap-3 md:grid-cols-2';
+      var left = (obj.leftBullets||[]).map(function(b,i){return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>';}).join('');
+      var right = (obj.rightBullets||[]).map(function(b,i){return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>';}).join('');
+      wrap.appendChild(makeCard(obj.leftTitle||'Side A', "<ul class='pretty-list list-disc pl-6'>"+left+"</ul>"));
+      wrap.appendChild(makeCard(obj.rightTitle||'Side B', "<ul class='pretty-list list-disc pl-6'>"+right+"</ul>"));
+      contentEl.appendChild(wrap);
+      if(obj.conclusion) contentEl.appendChild(makeCard('Conclusion', '<p>'+obj.conclusion+'</p>'));
+    }
+    function renderCauseEffect(obj){
+      contentEl.innerHTML='';
+      var left = (obj.causes||[]).map(function(b,i){return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>';}).join('');
+      var right = (obj.effects||[]).map(function(b,i){return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>';}).join('');
+      var wrap=document.createElement('div'); wrap.className='grid gap-3 md:grid-cols-2';
+      wrap.appendChild(makeCard('Causes', "<ul class='pretty-list list-disc pl-6'>"+left+"</ul>"));
+      wrap.appendChild(makeCard('Effects', "<ul class='pretty-list list-disc pl-6'>"+right+"</ul>"));
+      contentEl.appendChild(wrap);
+    }
+    function renderTimelineH(obj){
+      contentEl.innerHTML='';
+      var rail=document.createElement('div'); rail.className='relative mt-2 mb-1';
+      rail.innerHTML = "<div class='h-2 rounded-full' style='background:linear-gradient(90deg,#e2e8f0,#cbd5e1)'></div>";
+      contentEl.appendChild(rail);
+      var events=(obj.sections||[]).map(function(s,i){return {title:s.heading||('Step '+(i+1)), text:(s.bullets||[])[0]||''};});
+      var cols=Math.min(6,Math.max(3,Math.ceil(events.length)));
+      var row=document.createElement('div'); row.className='grid gap-3 '+(cols?('md:grid-cols-'+cols):'');
+      events.forEach(function(ev){ row.appendChild(makeCard(ev.title, "<p class='text-sm'>"+ev.text+"</p>")); });
+      contentEl.appendChild(row);
+    }
+    function renderFrayerIFD(obj){
+      contentEl.innerHTML='';
+      var grid=document.createElement('div'); grid.className='grid gap-3 md:grid-cols-2';
+      (obj.sections||[]).slice(0,4).forEach(function(s){
+        var items=(s.bullets||[]).map(function(b,i){return '<li>'+(toggleEmoji.checked?emojiFor(i):'')+b+'</li>';}).join('');
+        grid.appendChild(makeCard(s.heading||'', "<ul class='pretty-list list-disc pl-6'>"+items+"</ul>"));
+      });
+      contentEl.appendChild(grid);
+    }
+    function renderFrayerClassic(obj){ renderFrayerIFD(obj); }
+    function renderMathEx(obj){
+      contentEl.innerHTML='';
+      var top=document.createElement('div'); top.className='grid gap-3 md:grid-cols-2';
+      var given = (obj.given||[]).map(function(g){return "<li><span class='mathface'>"+g+"</span></li>";}).join('');
+      top.appendChild(makeCard('Worked Example — Given', "<ul class='pretty-list pl-6'>"+given+"</ul>"));
+      top.appendChild(makeCard('Formula', "<div class='eqbox'><span class='mathface'>"+(obj.formula||'')+"</span></div>"));
+      contentEl.appendChild(top);
+      var steps = (obj.steps||[]).map(function(s){return "<li><span class='mathface'>"+s+"</span></li>";}).join('');
+      contentEl.appendChild(makeCard('Steps', "<ol class='list-decimal pl-6'>"+steps+"</ol>"));
+      var ex = (obj.example||[]).map(function(l){return "<div class='mathface'>"+l+"</div>";}).join('');
+      contentEl.appendChild(makeCard('Worked Example', "<div class='space-y-2 text-lg'>"+ex+"</div>"));
+      contentEl.appendChild(makeCard('Answer', "<div class='text-xl'><span class='mathface'>"+(obj.answer||'')+"</span></div>"));
+      // Handwritten toggle applies class on sheet (already handled in applyStyling)
+    }
+
+    function renderByLayout(layout, data){
+      titleEl.textContent = data.title || (topicEl.value || 'Your Chart');
+      subEl.textContent = data.subtitle || '';
+      var map={standard:'Standard',compare:'Comparison',cause:'Cause ↔ Effect',timelineH:'Timeline — Horizontal',frayer:'Frayer (IFD)',frayerClassic:'Frayer — Classic',auto:'Auto',mathex:'MathEx — Worked Example'};
+      formatBadge.textContent = 'Format: ' + (map[layout]||'Standard');
+      if(layout==='compare') return renderCompare(data);
+      if(layout==='cause') return renderCauseEffect(data);
+      if(layout==='timelineH') return renderTimelineH(data);
+      if(layout==='frayer') return renderFrayerIFD(data);
+      if(layout==='frayerClassic') return renderFrayerClassic(data);
+      if(layout==='mathex') return renderMathEx(data);
+      return renderStandard(data);
+    }
+
+    function relayout(){
+      applyStyling();
+      var layout = layoutSel.value;
+      if(isSimpleLayout(layout)){ renderSimple(layout); return; }
+      if(!lastChartJSON) return;
+      var chosen = (layout==='auto') ? (looksMathy(topicEl.value)?'mathex':(looksLikeComparison(topicEl.value)?'compare':'standard')) : layout;
+      renderByLayout(chosen, lastChartJSON);
+      refreshHighlights();
+    }
+
+    // ===== Model
+    function callModel(body){
+      return fetch((PROXY || '') + '/api/generate', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, status:r.status, data:d};});});
+    }
+    function generate(){
+      if(isSimpleLayout(layoutSel.value)){ relayout(); srStatus.textContent='Chart ready (Quick Template).'; return; }
+      var topic=(topicEl.value||'').trim();
+      if(!topic){ errorEl.textContent='Please enter a topic.'; errorEl.classList.remove('hidden'); return; }
+      errorEl.classList.add('hidden');
+      startLoading(); progressTo(20);
+      var chosen= layoutSel.value==='auto' ? (looksMathy(topic)?'mathex':(looksLikeComparison(topic)?'compare':'standard')) : layoutSel.value;
+
+      var prompt, schema;
+      if(chosen==='mathex'){
+        prompt="You are Chartie, an expert teacher anchor-chart generator.\nCreate a clear, step-by-step math worked example for: \""+topic+"\".\nReturn ONLY JSON with keys: title, subtitle, given[], formula, steps[], example[], answer.";
+        schema={type:'object',properties:{title:{type:'string'},subtitle:{type:'string'},given:{type:'array',items:{type:'string'}},formula:{type:'string'},steps:{type:'array',items:{type:'string'}},example:{type:'array',items:{type:'string'}},answer:{type:'string'}},required:['title','steps']};
+      } else if(chosen==='compare'){
+        prompt="You are Chartie. Two-column comparison for: \""+topic+"\". Return JSON: title, subtitle, leftTitle, leftBullets[], rightTitle, rightBullets[], conclusion.";
+        schema={type:'object',properties:{title:{type:'string'},subtitle:{type:'string'},leftTitle:{type:'string'},leftBullets:{type:'array',items:{type:'string'}},rightTitle:{type:'string'},rightBullets:{type:'array',items:{type:'string'}},conclusion:{type:'string'}},required:['title','leftTitle','leftBullets','rightTitle','rightBullets']};
+      } else if(chosen==='cause'){
+        prompt="You are Chartie. Cause ↔ Effect for: \""+topic+"\". Return JSON: title, subtitle, causes[], effects[] (parallel).";
+        schema={type:'object',properties:{title:{type:'string'},subtitle:{type:'string'}},required:[]};
+      } else {
+        prompt="You are Chartie. Anchor chart for: \""+topic+"\". Short, concrete bullets. Include final \"Example\" section when helpful. Return JSON: {title, subtitle, sections:[{heading, bullets[]}]}";
+        schema={type:'object',properties:{title:{type:'string'},subtitle:{type:'string'}},required:[]};
+      }
+
+      callModel({
+        model: MODEL,
+        contents:[{parts:[{text:prompt}]}],
+        generationConfig:{ responseMimeType:'application/json', responseSchema:schema, temperature:0.6 }
+      }).then(function(resp){
+        progressTo(65);
+        if(!resp.ok){
+          stopLoading();
+          errorEl.textContent = (resp.data && resp.data.error && (resp.data.error.message || resp.data.error)) || ('Error '+resp.status);
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        var text = (resp.data && resp.data.candidates && resp.data.candidates[0] && resp.data.candidates[0].content && resp.data.candidates[0].content.parts && resp.data.candidates[0].content.parts[0] && resp.data.candidates[0].content.parts[0].text) || '{}';
+        try{
+          lastChartJSON = JSON.parse(text);
+        }catch(e){
+          lastChartJSON = { title: 'Chart', sections:[{heading:'Output', bullets:['Model returned invalid JSON.']} ] };
+        }
+        renderByLayout(chosen,lastChartJSON);
+        srStatus.textContent='Chart ready.';
+        progressTo(95);
+      }).catch(function(e){
+        errorEl.textContent='Network/proxy error: '+String(e && e.message || e);
+        errorEl.classList.remove('hidden');
+      }).finally(function(){ stopLoading(); });
+    }
+
+    // ===== Downloads
+    function downloadPNG(){
+      var bg = sheet.classList.contains('bg-blank') ? '#ffffff'
+               : sheet.classList.contains('bg-lined-dark') ? '#f5efe3'
+               : sheet.classList.contains('bg-graph') ? '#ffffff'
+               : '#fff9e8';
+      html2canvas(sheet,{scale:2,backgroundColor:bg}).then(function(canvas){
+        var a=document.createElement('a'); var safe=(titleEl.textContent||'Chartie-Chart').replace(/[\/\\?%*:|"<>]/g,'-').slice(0,80);
+        a.download=safe+'.png'; a.href=canvas.toDataURL('image/png'); a.click();
+      });
+    }
+    function downloadPDF(){
+      var jsPDF = window.jspdf.jsPDF;
+      var sizeMap={letter:[216,279],a4:[210,297],tabloid:[279,432]};
+      var s=sizeMap[paperSel.value]||sizeMap.letter; var w=s[0], h=s[1];
+      if(orientSel.value==='landscape'){ var tmp=w; w=h; h=tmp; }
+      var bg = sheet.classList.contains('bg-blank') ? '#ffffff'
+               : sheet.classList.contains('bg-lined-dark') ? '#f5efe3'
+               : sheet.classList.contains('bg-graph') ? '#ffffff'
+               : '#fff9e8';
+      html2canvas(sheet,{scale:2,backgroundColor:bg}).then(function(canvas){
+        var img=canvas.toDataURL('image/png'); var pdf=new jsPDF({orientation:orientSel.value,unit:'mm',format:[w,h]});
+        var ratio=Math.min(w/canvas.width,h/canvas.height); var iw=canvas.width*ratio, ih=canvas.height*ratio; var x=(w-iw)/2, y=(h-ih)/2;
+        pdf.addImage(img,'PNG',x,y,iw,ih,'','FAST'); var name=(titleEl.textContent||'Chartie-Chart').replace(/[\/\\?%*:|"<>]/g,'-').slice(0,80);
+        pdf.save(name+'.pdf');
+      });
+    }
+
+    // Events + init
+    btnGen.addEventListener('click', generate);
+    btnDl.addEventListener('click', downloadPNG);
+    btnPDF.addEventListener('click', downloadPDF);
+    topicEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); generate(); }});
+
+    [layoutSel, hlStyleSel, fontPresetSel, bgStyleSel, toggleBig, toggleEmoji, toggleHand, toggleSticky].forEach(function(el){
+      el.addEventListener('change', function(){
+        var layout=layoutSel.value;
+        var showQt = simpleLayouts.has(layout);
+        document.getElementById('qt-panel').classList.toggle('hidden', !showQt);
+        if(showQt) buildQtRows(layout);
+        stickyControls.classList.toggle('hidden', !toggleSticky.checked);
+        relayout();
+      });
+    });
+    stickyTitle.addEventListener('input', function(){ stickyH.textContent=stickyTitle.value; });
+    stickyText.addEventListener('input', function(){ stickyP.textContent=stickyText.value; });
+
+    accentButtons.forEach(function(b){ b.addEventListener('click', function(){ setAccent(b.getAttribute('data-color')); }); });
+
+    // Initial
+    setAccent('#f59e0b');
+    setFonts('hand+rounded');
+    setBackground('lined-light');
+    refreshHighlights();
+  </script>
+</body>
+</html>
 
