@@ -1,98 +1,73 @@
-import express from "express";
-import helmet from "helmet";
-import compression from "compression";
-import rateLimit from "express-rate-limit";
+/* server.js — same-origin Express server + proxy for Gemini */
+require('dotenv').config();
 
-// ----- Config -----
-const PORT = process.env.PORT || 10000;
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-if (!GOOGLE_API_KEY) {
-  console.warn("[WARN] GOOGLE_API_KEY is not set. /api/generate will 401.");
-}
+const path = require('path');
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+
+// node-fetch v3 (ESM) shim for CommonJS:
+const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 const app = express();
 
-// Security + perf
-app.use(helmet({
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      // allow Tailwind CDN, Google Fonts, jsDelivr for html2canvas/jsPDF
-      "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
-      "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
-      "img-src": ["'self'", "data:", "blob:"]
-    }
-  }
-}));
-app.use(compression());
-app.use(express.json({ limit: "1mb" }));
+// ---- Config
+const PORT = process.env.PORT || 3000;
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const MODEL = process.env.CHARTIE_MODEL || 'models/gemini-2.5-flash';
 
-// Simple rate limit on the API
-const limiter = rateLimit({
+// ---- Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(cors({ origin: true, methods: ['GET', 'POST', 'OPTIONS'] }));
+app.use(compression());
+app.use(express.json({ limit: '1mb' }));
+
+// rate limit for /api
+app.use('/api/', rateLimit({
   windowMs: 60 * 1000,
   max: 60,
-});
-app.use("/api/", limiter);
+  standardHeaders: true,
+  legacyHeaders: false
+}));
 
-// Health
-app.get("/healthz", (req, res) => {
-  res.json({ ok: true, uptime: process.uptime() });
+// ---- API
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, model: MODEL, hasKey: Boolean(GOOGLE_API_KEY) });
 });
 
-// ---- Same-origin AI endpoint ----
-app.post("/api/generate", async (req, res) => {
+app.post('/api/generate', async (req, res) => {
   try {
     if (!GOOGLE_API_KEY) {
-      return res.status(401).json({ error: { message: "Missing GOOGLE_API_KEY" } });
+      return res.status(500).json({ error: { message: 'Missing GOOGLE_API_KEY' } });
     }
-
-    const { model, contents, generationConfig } = req.body || {};
-    if (!model || !contents) {
-      return res.status(400).json({ error: { message: "Missing model or contents" } });
-    }
-
-    // Google Generative Language API v1beta
-    const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${encodeURIComponent(GOOGLE_API_KEY)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/${MODEL}:generateContent?key=${encodeURIComponent(GOOGLE_API_KEY)}`;
 
     const upstream = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        generationConfig
-      })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body || {})
     });
 
     const data = await upstream.json();
-    if (!upstream.ok) {
-      // pass through Google error
-      return res.status(upstream.status).json(data);
-    }
+    if (!upstream.ok) return res.status(upstream.status).json(data);
     res.json(data);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: { message: "Proxy error" } });
+    console.error('Proxy error:', err);
+    res.status(500).json({ error: { message: 'Proxy failure', detail: String(err && err.message || err) } });
   }
 });
 
-// ---- Static front-end (Chartie) ----
-app.use(express.static("public", {
-  extensions: ["html"],
-  // Cache HTML lightly; assets can be cached by the browser CDNs
-  setHeaders: (res, path) => {
-    if (path.endsWith(".html")) {
-      res.setHeader("Cache-Control", "no-cache");
-    }
-  }
-}));
+// ---- Static app
+const PUBLIC_DIR = path.join(__dirname, 'public');
+app.use(express.static(PUBLIC_DIR));
+// SPA-style fallback to index
+app.get('*', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 
-// SPA fallback (if you ever add routes)
-app.get("*", (req, res) => {
-  res.sendFile(new URL("./public/index.html", import.meta.url));
-});
-
+// ---- Start
 app.listen(PORT, () => {
-  console.log(`✅ Chartie full-stack listening on :${PORT}`);
+  console.log(`Chartie running on http://localhost:${PORT}`);
 });
